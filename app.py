@@ -11,8 +11,8 @@ from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
-st.set_page_config(page_title="Steam BI Intelligence", page_icon="🎮", layout="wide")
-st.title("🎮 Steam Market BI Dashboard — Pipeline Agent & MCP")
+st.set_page_config(page_title="Steam BI", page_icon="🎮", layout="wide")
+st.title("🎮 Steam Business Intelligence - Analyse des Jeux Vidéo")
 
 llm = ChatOpenAI(model="llama3.2", base_url="http://localhost:11434/v1", api_key="ollama", temperature=0)
 
@@ -70,7 +70,7 @@ else:
 # AFFICHAGE DU COMPTEUR DE JEUX EN HAUT (KPI)
 st.markdown(f"""
 <div style="background-color:#1b2838; padding:15px; border-radius:10px; margin-bottom:20px; border-left: 5px solid #66c0f4;">
-    <h3 style="color:#ffffff; margin:0; font-family:Arial;">📊 Taille de la base de données locale</h3>
+    <h3 style="color:#ffffff; margin:0; font-family:Arial;">Taille de la base de données locale</h3>
     <p style="color:#66c0f4; font-size:28px; font-weight:bold; margin:5px 0 0 0;">{total_jeux_base:,} jeux synchronisés</p>
 </div>
 """, unsafe_allow_html=True)
@@ -96,7 +96,7 @@ with st.sidebar:
         selected_developer = st.selectbox("Développeur", options=devs_uniques, index=devs_uniques.index(st.session_state["steam_filters"]["selected_developer"]) if st.session_state["steam_filters"]["selected_developer"] in devs_uniques else 0)
         selected_publisher = st.selectbox("Éditeur / Publisher", options=pubs_uniques, index=pubs_uniques.index(st.session_state["steam_filters"]["selected_publisher"]) if st.session_state["steam_filters"]["selected_publisher"] in pubs_uniques else 0)
 
-        mac_only = st.checkbox("Disponible sur Mac 🍎", value=st.session_state["steam_filters"]["mac_only"])
+        mac_only = st.checkbox("Disponible sur Mac", value=st.session_state["steam_filters"]["mac_only"])
         min_rating = st.slider("Taux de satisfaction min (%)", 0.0, 100.0, float(st.session_state["steam_filters"]["min_rating"]))
 
         st.session_state["steam_filters"]["price_max"] = price_max
@@ -131,11 +131,11 @@ def build_live_dashboard(filters):
                [{"type": "scatter"}, {"type": "bar"}],
                [{"type": "bar", "colspan": 2}, None]],
         subplot_titles=(
-            f"Q1. Répartition des parts de marché par Genre ({len(f_df)} filtrés)",
-            "Q2. Satisfaction : Jeux Gratuits vs Payants",
-            "Q3. Évolution du Prix Moyen par Année de Sortie",
-            "Q4. Top 5 Éditeurs par Évaluations Positives",
-            "Q5. Portée globale du marché : Compatibilité Mac vs Windows Seul"
+            f"Répartition des parts de marché par Genre ({len(f_df)} filtrés)",
+            "Satisfaction : Jeux Gratuits vs Payants",
+            "Évolution du Prix Moyen par Année de Sortie",
+            "Top 5 Éditeurs par Évaluations Positives",
+            "Portée globale du marché : Compatibilité Mac vs Windows Seul"
         )
     )
 
@@ -163,7 +163,7 @@ def build_live_dashboard(filters):
 if df is not None:
     st.plotly_chart(build_live_dashboard(st.session_state["steam_filters"]), use_container_width=True)
 
-st.subheader("💬 Posez vos questions métier à l'assistant Business Intelligence")
+st.subheader("Posez vos questions métier à l'assistant Business Intelligence")
 if "steam_messages" not in st.session_state: st.session_state["steam_messages"] = []
 
 for msg in st.session_state["steam_messages"]:

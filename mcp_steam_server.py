@@ -11,12 +11,11 @@ CSV_PATH = os.path.join(os.path.dirname(__file__), 'steam_games_clean.csv')
 def get_conn():
     conn = duckdb.connect()
     if os.path.exists(CSV_PATH):
-        # On force DuckDB à lire de manière sécurisée
         conn.execute(f"CREATE TABLE IF NOT EXISTS games AS SELECT * FROM read_csv_auto('{CSV_PATH}', all_varchar=False)")
     return conn
 
 def enrichir_csv_si_absent(nom_ou_id) -> int:
-    """Recherche un jeu sur le Store Steam, récupère ses infos et l'ajoute au CSV s'il n'y est pas."""
+    """Recherche un jeu sur le Store Steam, récupère ses infos réelles et l'ajoute au CSV."""
     appid = None
     try:
         appid = int(nom_ou_id)
@@ -34,7 +33,6 @@ def enrichir_csv_si_absent(nom_ou_id) -> int:
     if not appid:
         return None
 
-    # Chargement sécurisé du CSV existant
     if os.path.exists(CSV_PATH):
         try:
             df_existing = pd.read_csv(CSV_PATH)
@@ -45,8 +43,20 @@ def enrichir_csv_si_absent(nom_ou_id) -> int:
     else:
         df_existing = pd.DataFrame()
 
-    # Récupération API Store
     store_url = f"https://store.steampowered.com/api/appdetails?appids={appid}&cc=fr&l=french"
+    reviews_url = f"https://store.steampowered.com/appreviews/{appid}?json=1&language=all&purchase_type=all"
+
+    positives, negatives = 0, 0
+    try:
+        rev_resp = requests.get(reviews_url, timeout=10)
+        if rev_resp.status_code == 200:
+            query_summary = rev_resp.json().get('query_summary', {})
+            # On récupère les vraies valeurs fournies par Steam !
+            positives = query_summary.get('total_positive', 0)
+            negatives = query_summary.get('total_negative', 0)
+    except Exception as e:
+        print(f"Impossible de choper les vrais ratings : {e}")
+
     try:
         resp = requests.get(store_url, timeout=10)
         if resp.status_code == 200 and resp.json()[str(appid)]['success']:
@@ -68,8 +78,8 @@ def enrichir_csv_si_absent(nom_ou_id) -> int:
                 'publisher': str(", ".join(info.get('publishers', ['Inconnu']))),
                 'genres': genres if genres else 'Indéterminé',
                 'price': float(price),
-                'positive_ratings': int(500),  # Valeur fictive pour l'affichage graphique
-                'negative_ratings': int(50),   # Valeur fictive pour l'affichage graphique
+                'positive_ratings': int(positives), 
+                'negative_ratings': int(negatives), 
                 'platforms': platforms if platforms else 'windows',
                 'release_date': str(info.get('release_date', {}).get('date', datetime.today().strftime('%Y-%m-%d')))
             }
@@ -88,7 +98,7 @@ def enrichir_csv_si_absent(nom_ou_id) -> int:
 
 @mcp.tool()
 def get_live_players(nom_ou_id: str) -> str:
-    """Récupère le nombre actuel de joueurs connectés en simultané sur un jeu en fournissant son nom ou son AppID."""
+    """Ajoute ou synchronise un jeu dans la base locale, récupère son genre, ses détails généraux et le nombre de joueurs en direct."""
     appid = enrichir_csv_si_absent(nom_ou_id)
     if not appid:
         return f"Désolé, je n'ai pas trouvé de correspondance sur Steam pour '{nom_ou_id}'."
@@ -128,7 +138,7 @@ def check_mac_impact() -> str:
     conn = get_conn()
     try:
         query = """
-            SELECT
+            SELECT 
                 CASE WHEN platforms LIKE '%mac%' THEN 'Disponible sur Mac' ELSE 'Windows uniquement' END as support_mac,
                 COUNT(*) as nb_jeux,
                 ROUND(AVG(positive_ratings * 100.0 / NULLIF(positive_ratings + negative_ratings, 0)), 2) as approbation
